@@ -1,0 +1,1 @@
+{"listen": "127.0.0.1:12345", "servers": ["127.0.0.1:8080"], "debug": true, "networkTimeout": 60, "iomodel":"copy"}
