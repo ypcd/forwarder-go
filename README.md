@@ -18,11 +18,11 @@ Supported operating systems: windows, linux, macos
 
 qps: more than 40000/s
 
-(Single connection data volume 4KiB, Kbytes)
+(10 million connections, single connection data volume 4Kbytes)
 
-Throughput: more than 1000MiB/s
+Throughput: more than 1000Mbytes/s
 
-(Mbytes per second) (Single connection data volume 1GiB, Gbytes)
+(Single connection data volume 1Gbytes)
 
 
 ### test environment:
