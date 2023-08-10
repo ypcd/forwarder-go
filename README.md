@@ -16,13 +16,21 @@ Supported operating systems: windows, linux, macos
 
 ## Performance:
 
-qps: more than 40000/s
+### qps: more than 40000/s
 
 (10 million connections, single connection data volume 4Kbytes)
 
-Throughput: more than 1000Mbytes/s
+### Throughput: more than 1000Mbytes/s
 
 (Single connection data volume 1Gbytes)
+
+illustrate:
+
+To further improve the network performance of gforwarder, it is necessary to use lower-level network technologies such as zero copy or DPDK.
+
+In the short term, gforwarder will not adopt such underlying network technology.
+
+If you want to adopt the above-mentioned underlying network technology, you will use c/c++ or rust as the development language.
 
 
 ### test environment:
