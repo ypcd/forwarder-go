@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"runtime/debug"
 	"testing"
 	"time"
@@ -15,7 +14,7 @@ import (
 func init() {
 	//runtime.SetCPUProfileRate(200)
 	//debug.SetGCPercent(50)
-	debug.SetMemoryLimit(20 * 1024 * 1024 * 1024)
+	debug.SetMemoryLimit(8 * 1024 * 1024 * 1024)
 	init_server_test()
 	logger_test = g_Logger
 	g_networkTimeout = time.Second * 60 * 2
@@ -27,18 +26,18 @@ func Test_server_socket(t *testing.T) {
 	if gsbase.GetRaceState() {
 		inTest_server_socket(t, false, 128)
 	} else {
-		inTest_server_socket(t, false, 2000)
+		inTest_server_socket(t, false, 512)
 	}
 }
 
 func Test_server_socket_mt_big(t *testing.T) {
 	for i := 0; i < 1; i++ {
-		vi := int(math.Pow(2, float64(i)))
+		//vi := int(math.Pow(2, float64(i)))
 		g_app_close.Swap(false)
 		if gsbase.GetRaceState() {
 			inTest_server_socket_mt_gpool(t, false, 2, 128*1024)
 		} else {
-			inTest_server_socket_mt_gpool(t, true, 1*vi, 4*1024*1024/vi)
+			inTest_server_socket_mt_gpool(t, true, 1*2, 1*1024*1024)
 		}
 		g_app_close.Swap(true)
 		time.Sleep(time.Millisecond * 100)

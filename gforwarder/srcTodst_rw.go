@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ypcd/gforwarder/gstunnellib"
@@ -93,14 +94,17 @@ func srcTOdst_rw(src net.Conn, dst net.Conn, gctx gstunnellib.GsContext) {
 			timew1 = time.Now()
 			wlen, err := io.Copy(dst, bytes.NewBuffer(wbuf))
 			wlent += int64(wlen)
-			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) ||
-				errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrDeadlineExceeded) {
-				checkError_info_GsCtx(err, gctx)
-				return
-			} else {
-				checkError_panic_GsCtx(err, gctx)
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) ||
+					errors.Is(err, os.ErrDeadlineExceeded) || strings.Contains(err.Error(), "reset") {
+					checkError_info_GsCtx(err, gctx)
+					return
+				} else {
+					checkError_NoExit_GsCtx(err, gctx)
+					return
+				}
 			}
-			nt_write.Add(time.Now().Sub(timew1))
+			nt_write.Add(time.Since(timew1))
 			//tmr_out.Boot()
 		}
 

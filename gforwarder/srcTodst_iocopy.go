@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ypcd/gforwarder/gstunnellib"
@@ -41,14 +42,15 @@ func srcTOdst_copy1(src net.Conn, dst net.Conn, gctx gstunnellib.GsContext) {
 			nt_read.PrintString(),
 			nt_write.PrintString(),
 		)
+		/*
+			if g_Values.GetDebug() {
 
-		if g_Values.GetDebug() {
+				//g_Logger.Println("goPackTotal:", goPackTotal)
 
-			//g_Logger.Println("goPackTotal:", goPackTotal)
-
-			//	g_Logger.Println("RecoTime_p_r All: ", recot_p_r.StringAll())
-			//	g_Logger.Println("RecoTime_p_w All: ", recot_p_w.StringAll())
-		}
+				//	g_Logger.Println("RecoTime_p_r All: ", recot_p_r.StringAll())
+				//	g_Logger.Println("RecoTime_p_w All: ", recot_p_w.StringAll())
+			}
+		*/
 	}()
 
 	err := src.SetReadDeadline(time.Now().Add(g_networkTimeout))
@@ -69,7 +71,7 @@ func srcTOdst_copy1(src net.Conn, dst net.Conn, gctx gstunnellib.GsContext) {
 		err = io.EOF
 	}
 	wlent += int64(wlen)
-	nt_write.Add(time.Now().Sub(timew1))
+	nt_write.Add(time.Since(timew1))
 	if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) ||
 		errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrDeadlineExceeded) {
 		checkError_info_GsCtx(err, gctx)
@@ -103,12 +105,15 @@ func srcTOdst_copy(src net.Conn, dst net.Conn, gctx gstunnellib.GsContext) {
 	}
 	_ = wlen
 	//	wlent += int64(wlen)
-	if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) ||
-		errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrDeadlineExceeded) {
-		checkError_info_GsCtx(err, gctx)
-		return
-	} else {
-		checkError_panic_GsCtx(err, gctx)
+	if err != nil {
+		if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) ||
+			errors.Is(err, os.ErrDeadlineExceeded) || strings.Contains(err.Error(), "reset") {
+			checkError_info_GsCtx(err, gctx)
+			return
+		} else {
+			checkError_NoExit_GsCtx(err, gctx)
+			return
+		}
 	}
 
 }

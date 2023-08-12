@@ -122,7 +122,11 @@ func init_server_run() {
 	g_tmr_changekey_time = time.Second * time.Duration(g_gsconfig.Tmr_changekey_time)
 	g_networkTimeout = time.Second * time.Duration(g_gsconfig.NetworkTimeout)
 
-	key = g_gsconfig.Key
+	var err error
+	g_ants_pool, err = ants.NewPool(0, ants.WithExpiryDuration(time.Second*60))
+	checkError_panic(err)
+	//defer g_ants_pool.Release()
+	gstunnellib.G_ants_pool = g_ants_pool
 
 	g_Logger.Println("debug:", g_Values.GetDebug())
 
@@ -213,105 +217,45 @@ func main() {
 	}
 }
 
-func run_old() {
-	//defer gstunnellib.Panic_Recover_GSCtx(g_Logger, gctx)
-
-	var lstnaddr, connaddr string
-
-	lstnaddr = g_gsconfig.Listen
-	connaddr = g_gsconfig.GetServers()[0]
-
-	//lstnaddr = *bindAddr
-	//connaddr = *serverAddr
-
-	//lstnaddr = ":1234"
-	//connaddr = "127.0.0.1:8080"
-
-	g_Logger.Println("Listen_Addr:", lstnaddr)
-	g_Logger.Println("Server_Addr:", connaddr)
-	g_Logger.Println("Begin......")
-
-	service := lstnaddr
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", service)
-	checkError(err)
-	listener, err := net.ListenTCP("tcp", tcpAddr)
-	checkError(err)
-
-	for {
-		acc, err := listener.Accept()
-		if err != nil {
-			checkError_NoExit(err)
-			continue
-		}
-		g_log_List.GSIpLogger.Printf("ip: %s\n", acc.RemoteAddr().String())
-
-		service := connaddr
-
-		connServiceError_count := 0
-		const maxTryConnService int = 5000
-		var dst net.Conn
-		for {
-			dst, err = net.Dial("tcp", service)
-			checkError_NoExit(err)
-			connServiceError_count += 1
-			if err == nil {
-				break
-			}
-			if connServiceError_count > maxTryConnService {
-				checkError(
-					errors.New(
-						fmt.Sprintf("connService_count > maxTryConnService(%d)", maxTryConnService),
-					),
-				)
-			}
-			//g_Logger.Println("conn.")
-		}
-
-		gctx := gstunnellib.NewGsContextImp(g_gid.GetId())
-		go srcTOdstUn(acc, dst, gctx)
-		go srcTOdstP(dst, acc, gctx)
-		g_Logger.Printf("go [%d].\n", gctx.GetGsId())
-	}
-}
-
+/*
 func createToRawServiceConnHandler(chanconnlist <-chan net.Conn, rawServiceAddr string) {
 
-	const maxTryConnService int = 5000
-	var err error
-	for {
-
-		gstClient, ok := <-chanconnlist
-		if !ok {
-			checkError_NoExit(errors.New("'gstServer, ok := <-chanconnlist' is not ok"))
-			return
-		}
-		g_log_List.GSIpLogger.Printf("Gstunnel client ip: %s\n", gstClient.RemoteAddr().String())
-
-		connServiceError_count := 0
-		var rawService net.Conn
+		const maxTryConnService int = 5000
+		var err error
 		for {
-			rawService, err = net.Dial("tcp", rawServiceAddr)
-			checkError_NoExit(err)
-			connServiceError_count += 1
-			if err == nil {
-				break
+
+			gstClient, ok := <-chanconnlist
+			if !ok {
+				checkError_NoExit(errors.New("'gstServer, ok := <-chanconnlist' is not ok"))
+				return
 			}
-			if connServiceError_count > maxTryConnService {
-				checkError(
-					fmt.Errorf("connService_count > maxTryConnService(%d)", maxTryConnService))
+			g_log_List.GSIpLogger.Printf("Gstunnel client ip: %s\n", gstClient.RemoteAddr().String())
+
+			connServiceError_count := 0
+			var rawService net.Conn
+			for {
+				rawService, err = net.Dial("tcp", rawServiceAddr)
+				checkError_NoExit(err)
+				connServiceError_count += 1
+				if err == nil {
+					break
+				}
+				if connServiceError_count > maxTryConnService {
+					checkError(
+						fmt.Errorf("connService_count > maxTryConnService(%d)", maxTryConnService))
+				}
+				//g_Logger.Println("conn.")
 			}
-			//g_Logger.Println("conn.")
+
+			gctx := gstunnellib.NewGsContextImp(g_gid.GenerateId())
+			//g_gstst.GetStatusConnList().Add(gctx.GetGsId(), gstClient, rawService)
+
+			go srcTOdstUn(gstClient, rawService, gctx)
+			go srcTOdstP(rawService, gstClient, gctx)
+			g_Logger.Printf("go [%d].\n", gctx.GetGsId())
 		}
-
-		gctx := gstunnellib.NewGsContextImp(g_gid.GenerateId())
-		//g_gstst.GetStatusConnList().Add(gctx.GetGsId(), gstClient, rawService)
-
-		go srcTOdstUn(gstClient, rawService, gctx)
-		go srcTOdstP(rawService, gstClient, gctx)
-		g_Logger.Printf("go [%d].\n", gctx.GetGsId())
 	}
-}
-
+*/
 func createToRawServiceConnHandler_test(chanconnlist <-chan net.Conn, rawServiceAddr string) {
 
 	const maxTryConnService int = 6
@@ -426,17 +370,28 @@ func run() {
 	defer close(chanConnList)
 
 	for i := 0; i < g_connHandleGoNum; i++ {
-		go createToRawServiceConnHandler(chanConnList, rawServiceAddr)
+		go createToRawServiceConnHandler_pool(chanConnList, rawServiceAddr)
 	}
 
-	for {
-		Client, err := listener.Accept()
-		if err != nil {
-			checkError_NoExit(err)
-			continue
-		}
-		chanConnList <- Client
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < g_connHandleGoNum/2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for !g_app_close.Load() {
+				Client, err := listener.Accept()
+				if errors.Is(err, net.ErrClosed) {
+					return
+				} else if err != nil {
+					checkError_NoExit(err)
+					continue
+				}
+				chanConnList <- Client
+			}
+		}()
 	}
+	wg.Wait()
 }
 
 func run_pipe_test_listen(lstnAddr, rawServiceAddr string, outListener *net.TCPListener) {
