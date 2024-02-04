@@ -1,8 +1,8 @@
-# gforwarder
+# forwarder-go
 A high-performance network forwarder developed in go language.
 
 
-gforwarder is a high-performance network forwarder developed in go language.
+forwarder-go is a high-performance network forwarder developed in go language.
 
 Support tcp protocol.
 
@@ -26,9 +26,9 @@ Supported operating systems: windows, linux, macos
 
 illustrate:
 
-To further improve the network performance of gforwarder, it is necessary to use lower-level network technologies such as zero copy or DPDK.
+To further improve the network performance of forwarder-go, it is necessary to use lower-level network technologies such as zero copy or DPDK.
 
-In the short term, gforwarder will not adopt such underlying network technology.
+In the short term, forwarder-go will not adopt such underlying network technology.
 
 If you want to adopt the above-mentioned underlying network technology, you will use c/c++ or rust as the development language.
 
